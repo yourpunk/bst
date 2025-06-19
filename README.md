@@ -1,64 +1,127 @@
 # 🌲 Parallel Binary Search Tree Playground
 
-This project is a no-BS benchmark suite for testing multithreaded insertion into a custom Binary Search Tree.  
-It's all about raw performance and correctness when inserting large datasets in parallel.
+A high-performance, fine-grained **thread-safe Binary Search Tree (BST)** implementation in C++ with OpenMP-based concurrent insertion benchmarking.  
+This project focuses on **lock-aware parallelism**, **structural integrity under load**, and **realistic stress-testing scenarios** for symbolic tree structures.
 
-> 🛠️ BST logic (`bst_tree.cpp`) was implemented by me. It supports thread-safe insertions using fine-grained locks.  
-> Everything else just stress-tests it — sorted vs shuffled data, parallel vs chaos.
+---
 
-## 🚀 What It Does
+## 🚀 Overview
 
-It runs two tests:
+This repository contains:
 
-- `Shuffled data`: inserts 1,000,000 integers in random order, fully parallelized.
-- `Sorted data`: inserts 40,000 integers in sorted order — a known worst-case for vanilla BSTs.
+- A **custom BST implementation** with per-node mutex protection
+- A minimal **benchmark harness** for evaluating insertion speed and correctness
+- Real-world inspired test cases:
+  - `Shuffled data`: simulates unordered insert workload
+  - `Sorted data`: worst-case input for BSTs (left-leaning degeneracy)
 
-Each test:
-- builds the tree in parallel (`#pragma omp parallel for`)
-- verifies correctness via in-order traversal (should be sorted if the tree is valid)
-- times the whole thing and prints it in milliseconds
+---
 
-## 📦 Files
+## ⚙️ Core Concepts
 
-| File            | Description |
-|------------------|-------------|
-| `bst_tree.h/cpp` | ⭐ My implementation. Thread-safe BST with per-node locks. |
-| `tests.h`        | Base test + sorted/shuffled variants. |
-| `main.cpp`       | Runs both tests and prints the results. |
+| Component            | Implementation |
+|----------------------|----------------|
+| Thread Safety        | Fine-grained per-node locks (top-down path locking) |
+| Concurrency Model    | OpenMP-based parallel loop insertion |
+| Validation           | In-order traversal for BST correctness |
+| Performance Metric   | Time (ms) to insert and validate N nodes |
 
-## 🧪 How to Run
+---
 
-Make sure you have OpenMP enabled:
+## 🧠 Why
+
+Concurrent binary tree structures are a classic systems programming challenge — balancing mutability, correctness, and performance.  
+This project was built to:
+
+- Explore low-level **fine-grained locking** patterns
+- Investigate performance under **structured and chaotic insert orders**
+- Benchmark how tree balance impacts real-time throughput
+- Learn how far raw C++ + OpenMP can go without third-party abstractions
+
+---
+
+## 📦 Project Structure
 
 ```bash
-g++ -std=c++17 -fopenmp main.cpp bst_tree.cpp -o bst_test
+.
+├── bst_tree.h / .cpp    # ⭐ Core BST logic — per-node locking, insert, validation
+├── tests.h              # Test setup: sorted vs shuffled input
+├── main.cpp             # Benchmark runner
+├── Makefile             # Build configuration
+├── LICENSE
+└── README.md            # This file
+```
+
+---
+
+## 🧪 How to Run
+Ensure OpenMP is supported by your compiler (GCC/Clang with -fopenmp).
+
+``` bash
+make        # or manually: g++ -std=c++17 -fopenmp main.cpp bst_tree.cpp -o bst_test
 ./bst_test
 ```
-Expected output looks like this:
+Expected output:
 
-```kotlin
-Shuffled data          1234 ms
-Sorted data             450 ms
-```
-If the tree fails validation or throws, you'll get:
+```text
+[+] Running shuffled insert test...
+Result: valid BST  | Time: 1234 ms
 
-```wasm
-Shuffled data       --- wrong result ---
-Sorted data         --- not implemented ---
+[+] Running sorted insert test...
+Result: valid BST  | Time: 450 ms
 ```
 
-## 🧠 Why This Exists
-I wanted to write my own binary search tree from scratch — no STL, no black box, just me vs threads.
-Thread-safe insert into a BST is a classic challenge, and I wanted to actually build one instead of just reading academic PDFs about it.
+---
 
-This project helped me:
-- understand fine-grained locking
-- stress-test tree structures with sorted vs randomized inputs
-- practice writing clean tests that validate correctness under pressure
+## 🔐 Thread Safety Model
+Insertions are made safe through per-node mutexes.
+Locking strategy:
+- Acquires locks top-down, from root to leaf
+- Avoids deadlocks via consistent lock ordering
+- Prevents structural races during concurrent inserts
+- Multiple writers allowed — only paths to specific insert points are locked
+This design ensures maximum concurrency with minimal blocking, especially under randomized input.
+
+---
+
+## 📈 Benchmark Logic
+Each benchmark:
+- Generates N integers (either shuffled or sorted)
+- Spawns an OpenMP `parallel for` region
+- Each thread performs a lock-aware insert of one integer
+- Validates the final tree via in-order traversal
+- Reports total insertion + validation time in ms
+
+---
+
+## 🧩 Design Trade-offs
+
+|Trade-off|	Rationale|
+|---|---|
+|No balancing (e.g., AVL)	|Focus on raw locking / correctness, not AVL logic|
+|OpenMP > std::thread pool	| Simpler syntax, compiler-parallelized|
+|Lock per node	| More scalable than monolithic locking|
+
+---
+
+## 🔄 Extensions / TODO
+
+- Add delete() and search() with locking
+- Compare against STL containers (std::set, std::map) under load
+- Enable lock-free / optimistic inserts (e.g., with atomics)
+- Add histogram of depth per insert (tree balance monitor)
+- Graphviz / DOT export for tree shape visualization
+
+---
 
 ## 📜 License
-**MIT**. Steal, fork, improve. But don’t ship this in production unless you know what you’re doing.
+
+MIT — use it, fork it, stress it.
+Just don’t deploy it without understanding the race conditions you're creating 😉
+
+---
 
 ## 👤 Author
-🦾 Crafted by Aleksandra Kenig (aka [yourpunk](https://github.com/yourpunk)).<br>
-💌 Wanna collab or throw some feedback? You know where to find me.
+🦾 Crafted by Aleksandra Kenig (aka [yourpunk](https://github.com/yourpunk)) - game developer, systems nerd, and tree violence enthusiast.
+
+> If you're building real-time systems or hiring for low-level concurrency — let's talk.
